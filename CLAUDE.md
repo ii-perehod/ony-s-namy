@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**FotoRestorer** (ФотоРеставратор) — a full-stack web app for AI-powered restoration and colorization of old photographs. Users upload damaged/B&W photos, which get processed through AI pipelines (CodeFormer for face restoration, DeOldify for colorization). Freemium model: 3 free photos, then paid packs via Stripe.
+**FotoRestorer** (ФотоРеставратор) — a full-stack web app for AI-powered restoration and colorization of old photographs. Users upload damaged/B&W photos, which get processed through AI pipelines (CodeFormer for face restoration, DeOldify for colorization). Freemium model: 3 free photos, then paid packs or monthly subscriptions via Stripe. Supports single photo, batch upload (up to 20), two-photo glare removal, and direct camera capture on mobile.
 
 All UI text is in Russian.
 
@@ -24,8 +24,8 @@ All UI text is in Russian.
 │   ├── main.py            # FastAPI app, all API route handlers
 │   ├── restore.py         # AI restoration pipeline (Replicate calls)
 │   ├── preprocess.py      # Image preprocessing (crop, scratch removal, glare merge)
-│   ├── payments.py        # Stripe checkout session + webhook handling
-│   ├── storage.py         # JSON-file session/usage tracking
+│   ├── payments.py        # Stripe checkout, subscriptions + webhook handling
+│   ├── storage.py         # JSON-file session/usage/subscription tracking
 │   ├── config.py          # Settings from environment variables
 │   ├── data/              # Runtime data (usage.json) — gitignored
 │   └── requirements.txt   # Python dependencies (pinned versions)
@@ -91,8 +91,11 @@ All required in `.env` (see `.env.example`):
 |----------|---------|
 | `REPLICATE_API_TOKEN` | Replicate API key for AI model calls |
 | `STRIPE_SECRET_KEY` | Stripe secret key |
-| `STRIPE_PRICE_ID` | Stripe product price ID |
+| `STRIPE_PRICE_ID` | Stripe product price ID (one-time packs) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signature verification |
+| `STRIPE_SUB_PRICE_30` | Stripe price ID for 30 photos/month subscription |
+| `STRIPE_SUB_PRICE_100` | Stripe price ID for 100 photos/month subscription |
+| `STRIPE_SUB_PRICE_UNLIMITED` | Stripe price ID for unlimited subscription |
 | `FREE_PHOTOS_LIMIT` | Free photos per session (default: 3) |
 | `UPLOAD_DIR` | Upload directory path (default: `./uploads`) |
 | `MAX_FILE_SIZE_MB` | Max upload size in MB (default: 20) |
@@ -101,13 +104,16 @@ All required in `.env` (see `.env.example`):
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/api/status` | Session info + remaining photo count |
+| `GET` | `/api/status` | Session info + remaining photo count + subscription status |
 | `POST` | `/api/restore` | Upload & restore single photo |
 | `POST` | `/api/restore-multi` | Upload 2 photos for glare removal + restore |
+| `POST` | `/api/restore-batch` | Upload & restore multiple photos at once (up to 20) |
 | `GET` | `/api/download/{photo_id}` | Download restored result |
 | `GET` | `/api/packs` | List available paid photo packs |
-| `POST` | `/api/checkout` | Create Stripe checkout session |
-| `POST` | `/api/webhook/stripe` | Stripe payment webhook |
+| `GET` | `/api/subscriptions` | List available subscription plans |
+| `POST` | `/api/checkout` | Create Stripe checkout session (one-time pack) |
+| `POST` | `/api/subscribe` | Create Stripe checkout session (subscription) |
+| `POST` | `/api/webhook/stripe` | Stripe payment webhook (packs + subscriptions) |
 
 Session tracking uses cookies (`session_id`), not authentication.
 
@@ -123,7 +129,11 @@ Session tracking uses cookies (`session_id`), not authentication.
 
 **Single photo**: upload → validate → auto-crop → remove scratches → enhance → CodeFormer (face restore) → DeOldify (colorize) → save result
 
+**Batch upload**: upload multiple files → each file goes through the single photo pipeline independently → return results array
+
 **Two-photo glare removal**: upload 2 angles → ORB feature alignment → glare detection (brightness > 220) → composite with Gaussian seam blending → then same pipeline as single photo
+
+**Camera capture**: Uses HTML5 `<input capture="environment">` to open the rear camera directly on mobile devices, then sends the captured photo through the single photo pipeline
 
 ## Code Conventions
 
@@ -146,3 +156,5 @@ No automated testing or linting is currently configured. There are no test files
 **Modify the UI**: All frontend logic is in `frontend/src/App.jsx`, styles in `frontend/src/styles.css`.
 
 **Change payment packs**: Edit the `PHOTO_PACKS` constant in `backend/payments.py`.
+
+**Change subscription plans**: Edit the `SUBSCRIPTION_PLANS` constant in `backend/payments.py`. Each plan needs a corresponding Stripe recurring price ID in `.env`.
