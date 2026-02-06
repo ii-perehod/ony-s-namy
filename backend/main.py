@@ -5,6 +5,7 @@ import uuid
 import shutil
 from pathlib import Path
 
+from typing import List
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Cookie
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -12,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from config import settings
 from storage import get_remaining, increment_usage, add_paid_photos, get_usage
-from restore import restore_and_colorize
+from restore import restore_and_colorize, restore_from_two_photos
 from payments import create_checkout_session, handle_webhook, PHOTO_PACKS
 
 app = FastAPI(title="FotoRestorer", version="1.0.0")
@@ -104,6 +105,67 @@ async def restore_photo(
     # Track usage
     increment_usage(sid)
 
+    remaining_after = get_remaining(sid, settings.FREE_PHOTOS_LIMIT)
+
+    response = JSONResponse({
+        "photo_id": photo_id,
+        "download_url": f"/api/download/{photo_id}",
+        "remaining": remaining_after,
+    })
+    response.set_cookie("session_id", sid, max_age=60 * 60 * 24 * 365)
+    return response
+
+
+# ── Upload 2 Photos (glare removal) ──────────────────────────────────
+
+@app.post("/api/restore-multi")
+async def restore_multi_photo(
+    files: List[UploadFile] = File(...),
+    session_id: str | None = Cookie(default=None),
+):
+    """Upload 2 photos of the same print taken at different angles.
+    Merges them to remove glare, then restores and colorizes."""
+    sid = _get_session_id(session_id)
+    remaining = get_remaining(sid, settings.FREE_PHOTOS_LIMIT)
+
+    if remaining <= 0:
+        raise HTTPException(
+            status_code=402,
+            detail="Лимит бесплатных фото исчерпан. Купите дополнительный пакет.",
+        )
+
+    if len(files) != 2:
+        raise HTTPException(status_code=400, detail="Нужно загрузить ровно 2 фото.")
+
+    max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    images = []
+    for f in files:
+        if not f.content_type or not f.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Оба файла должны быть изображениями.")
+        data = await f.read()
+        if len(data) > max_bytes:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Файл слишком большой. Максимум {settings.MAX_FILE_SIZE_MB} МБ.",
+            )
+        images.append(data)
+
+    # Save originals
+    photo_id = str(uuid.uuid4())
+    for i, data in enumerate(images):
+        orig_path = UPLOAD_DIR / "originals" / f"{photo_id}_angle{i+1}.jpg"
+        orig_path.write_bytes(data)
+
+    # Process: merge → preprocess → restore → colorize
+    try:
+        result_bytes = await restore_from_two_photos(images[0], images[1])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки: {str(e)}")
+
+    result_path = UPLOAD_DIR / "results" / f"{photo_id}.jpg"
+    result_path.write_bytes(result_bytes)
+
+    increment_usage(sid)
     remaining_after = get_remaining(sid, settings.FREE_PHOTOS_LIMIT)
 
     response = JSONResponse({
