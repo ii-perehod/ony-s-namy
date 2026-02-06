@@ -105,7 +105,7 @@ async def restore_photo(
     try:
         result_bytes = await restore_and_colorize(contents, file.filename or "photo.jpg")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка обработки: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки: {str(e)}") from e
 
     # Save result
     result_path = UPLOAD_DIR / "results" / f"{photo_id}.jpg"
@@ -169,7 +169,7 @@ async def restore_multi_photo(
     try:
         result_bytes = await restore_from_two_photos(images[0], images[1])
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка обработки: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки: {str(e)}") from e
 
     result_path = UPLOAD_DIR / "results" / f"{photo_id}.jpg"
     result_path.write_bytes(result_bytes)
@@ -294,7 +294,7 @@ async def checkout(
             cancel_url=f"{base_url}/",
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
     return {"checkout_url": url}
 
@@ -317,7 +317,7 @@ async def subscribe(
             cancel_url=f"{base_url}/",
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
     response = JSONResponse({"checkout_url": url})
     response.set_cookie("session_id", sid, max_age=60 * 60 * 24 * 365)
@@ -332,7 +332,7 @@ async def stripe_webhook(request: Request):
     try:
         result = handle_webhook(payload, sig)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     if result:
         event_type = result.get("event")

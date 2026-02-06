@@ -25,7 +25,7 @@ export default function App() {
     fetch(`${API}/status`, { credentials: "include" })
       .then((r) => r.json())
       .then(setStatus)
-      .catch(() => {});
+      .catch((err) => console.error("Ошибка загрузки статуса:", err));
   }, []);
 
   useEffect(() => {
@@ -759,7 +759,8 @@ function PaymentSection({ onSubscribed }) {
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
       }
-    } catch {
+    } catch (err) {
+      console.error("Ошибка оплаты:", err);
       alert(
         "Оплата временно недоступна. Для настройки добавьте ключи Stripe в .env"
       );
@@ -781,7 +782,8 @@ function PaymentSection({ onSubscribed }) {
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
       }
-    } catch {
+    } catch (err) {
+      console.error("Ошибка подписки:", err);
       alert(
         "Подписка временно недоступна. Для настройки добавьте ключи Stripe в .env"
       );
