@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**FotoRestorer** (ФотоРеставратор) — a full-stack web app for AI-powered restoration and colorization of old photographs. Users upload damaged/B&W photos, which get processed through AI pipelines (CodeFormer for face restoration, DeOldify for colorization). Freemium model: 3 free photos, then paid packs or monthly subscriptions via Stripe. Supports single photo, batch upload (up to 20), two-photo glare removal, and direct camera capture on mobile.
+**FotoRestorer** (ФотоРеставратор) — a full-stack web app for AI-powered restoration and colorization of old photographs. Users upload damaged/B&W photos, which get processed through AI pipelines (CodeFormer for face restoration, DeOldify for colorization). Freemium model: 5 free photos, then paid packs or monthly subscriptions via YooKassa (СБП, МИР, российские карты). Supports single photo, batch upload (up to 20), two-photo glare removal, and direct camera capture on mobile.
 
 All UI text is in Russian.
 
@@ -13,7 +13,7 @@ All UI text is in Russian.
 | Frontend | React + Vite | React 18.2, Vite 5.0 |
 | Backend | Python FastAPI | FastAPI 0.104, Python 3.12 |
 | AI Models | Replicate API | CodeFormer, DeOldify |
-| Payments | Stripe | stripe 7.8 |
+| Payments | YooKassa | yookassa 3.2 |
 | Image Processing | OpenCV + Pillow | opencv-headless 4.9, Pillow 10.1 |
 | Containerization | Docker | Multi-stage build, Node 20 + Python 3.12 |
 
@@ -24,7 +24,7 @@ All UI text is in Russian.
 │   ├── main.py            # FastAPI app, all API route handlers
 │   ├── restore.py         # AI restoration pipeline (Replicate calls)
 │   ├── preprocess.py      # Image preprocessing (crop, scratch removal, glare merge)
-│   ├── payments.py        # Stripe checkout, subscriptions + webhook handling
+│   ├── payments.py        # YooKassa checkout, subscriptions + webhook handling
 │   ├── storage.py         # JSON-file session/usage/subscription tracking
 │   ├── config.py          # Settings from environment variables
 │   ├── data/              # Runtime data (usage.json) — gitignored
@@ -90,13 +90,9 @@ All required in `.env` (see `.env.example`):
 | Variable | Purpose |
 |----------|---------|
 | `REPLICATE_API_TOKEN` | Replicate API key for AI model calls |
-| `STRIPE_SECRET_KEY` | Stripe secret key |
-| `STRIPE_PRICE_ID` | Stripe product price ID (one-time packs) |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signature verification |
-| `STRIPE_SUB_PRICE_30` | Stripe price ID for 30 photos/month subscription |
-| `STRIPE_SUB_PRICE_100` | Stripe price ID for 100 photos/month subscription |
-| `STRIPE_SUB_PRICE_UNLIMITED` | Stripe price ID for unlimited subscription |
-| `FREE_PHOTOS_LIMIT` | Free photos per session (default: 3) |
+| `YOOKASSA_SHOP_ID` | YooKassa shop ID (из личного кабинета) |
+| `YOOKASSA_SECRET_KEY` | YooKassa secret key |
+| `FREE_PHOTOS_LIMIT` | Free photos per session (default: 5) |
 | `UPLOAD_DIR` | Upload directory path (default: `./uploads`) |
 | `MAX_FILE_SIZE_MB` | Max upload size in MB (default: 20) |
 
@@ -111,9 +107,9 @@ All required in `.env` (see `.env.example`):
 | `GET` | `/api/download/{photo_id}` | Download restored result |
 | `GET` | `/api/packs` | List available paid photo packs |
 | `GET` | `/api/subscriptions` | List available subscription plans |
-| `POST` | `/api/checkout` | Create Stripe checkout session (one-time pack) |
-| `POST` | `/api/subscribe` | Create Stripe checkout session (subscription) |
-| `POST` | `/api/webhook/stripe` | Stripe payment webhook (packs + subscriptions) |
+| `POST` | `/api/checkout` | Create YooKassa payment (one-time pack) |
+| `POST` | `/api/subscribe` | Create YooKassa payment (subscription with autopayment) |
+| `POST` | `/api/webhook/yookassa` | YooKassa payment webhook (packs + subscriptions) |
 
 Session tracking uses cookies (`session_id`), not authentication.
 
@@ -157,4 +153,4 @@ No automated testing or linting is currently configured. There are no test files
 
 **Change payment packs**: Edit the `PHOTO_PACKS` constant in `backend/payments.py`.
 
-**Change subscription plans**: Edit the `SUBSCRIPTION_PLANS` constant in `backend/payments.py`. Each plan needs a corresponding Stripe recurring price ID in `.env`.
+**Change subscription plans**: Edit the `SUBSCRIPTION_PLANS` constant in `backend/payments.py`. Prices are defined directly in the code (no separate price IDs needed — YooKassa creates payments with amounts, not price references).

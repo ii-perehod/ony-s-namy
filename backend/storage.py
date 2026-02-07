@@ -2,10 +2,12 @@
 
 import json
 import os
+import threading
 import time
 from pathlib import Path
 
 STORAGE_FILE = Path(__file__).parent / "data" / "usage.json"
+_lock = threading.Lock()
 
 
 def _ensure_storage():
@@ -15,13 +17,15 @@ def _ensure_storage():
 
 
 def _load() -> dict:
-    _ensure_storage()
-    return json.loads(STORAGE_FILE.read_text())
+    with _lock:
+        _ensure_storage()
+        return json.loads(STORAGE_FILE.read_text())
 
 
 def _save(data: dict):
-    _ensure_storage()
-    STORAGE_FILE.write_text(json.dumps(data, indent=2))
+    with _lock:
+        _ensure_storage()
+        STORAGE_FILE.write_text(json.dumps(data, indent=2))
 
 
 def _default_entry() -> dict:
@@ -33,7 +37,7 @@ def _default_entry() -> dict:
         "sub_photo_limit": 0,
         "sub_used": 0,
         "sub_period_start": 0,
-        "stripe_subscription_id": None,
+        "payment_method_id": None,
     }
 
 
@@ -68,7 +72,7 @@ def add_paid_photos(session_id: str, count: int):
     _save(data)
 
 
-def set_subscription(session_id: str, plan: str, photo_limit: int, stripe_sub_id: str):
+def set_subscription(session_id: str, plan: str, photo_limit: int, payment_method_id: str):
     """Activate or update a subscription for a session."""
     data = _load()
     entry = data.get(session_id, _default_entry())
@@ -76,7 +80,7 @@ def set_subscription(session_id: str, plan: str, photo_limit: int, stripe_sub_id
     entry["sub_photo_limit"] = photo_limit
     entry["sub_used"] = 0
     entry["sub_period_start"] = time.time()
-    entry["stripe_subscription_id"] = stripe_sub_id
+    entry["payment_method_id"] = payment_method_id
     data[session_id] = entry
     _save(data)
 
@@ -86,7 +90,7 @@ def cancel_subscription(session_id: str):
     data = _load()
     entry = data.get(session_id, _default_entry())
     entry["subscription"] = None
-    entry["stripe_subscription_id"] = None
+    entry["payment_method_id"] = None
     data[session_id] = entry
     _save(data)
 

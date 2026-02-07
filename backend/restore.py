@@ -8,6 +8,7 @@ Full pipeline:
 All steps preserve original features: faces, buildings, nature, layout.
 """
 
+import asyncio
 import base64
 import io
 import urllib.request
@@ -37,8 +38,7 @@ async def restore_and_colorize(image_bytes: bytes, filename: str) -> bytes:
     restored_url = await _run_codeformer(data_uri)
     colorized_url = await _run_deoldify(restored_url)
 
-    with urllib.request.urlopen(colorized_url) as resp:
-        return resp.read()
+    return await _download_result(colorized_url)
 
 
 async def restore_from_two_photos(img_bytes_1: bytes, img_bytes_2: bytes) -> bytes:
@@ -57,8 +57,7 @@ async def restore_from_two_photos(img_bytes_1: bytes, img_bytes_2: bytes) -> byt
     restored_url = await _run_codeformer(data_uri)
     colorized_url = await _run_deoldify(restored_url)
 
-    with urllib.request.urlopen(colorized_url) as resp:
-        return resp.read()
+    return await _download_result(colorized_url)
 
 
 def _to_data_uri(image_bytes: bytes) -> str:
@@ -75,7 +74,8 @@ def _to_data_uri(image_bytes: bytes) -> str:
 
 async def _run_codeformer(image_input: str) -> str:
     """Restore faces and remove damage using CodeFormer."""
-    output = replicate.run(
+    output = await asyncio.to_thread(
+        replicate.run,
         "sczhou/codeformer:7bc05e82f4b10e96c383a5755a3ce4a091b9e251e3b94f152e9acba7b4a4a647",
         input={
             "image": image_input,
@@ -90,7 +90,8 @@ async def _run_codeformer(image_input: str) -> str:
 
 async def _run_deoldify(image_url: str) -> str:
     """Colorize a grayscale/sepia image using DeOldify."""
-    output = replicate.run(
+    output = await asyncio.to_thread(
+        replicate.run,
         "arielreplicate/deoldify_image:0da600fab0c45a66211339f1c16b71345d22f26ef5fea3dca1bb90bb5711e950",
         input={
             "input_image": image_url,
@@ -99,3 +100,11 @@ async def _run_deoldify(image_url: str) -> str:
         },
     )
     return output
+
+
+async def _download_result(url: str) -> bytes:
+    """Download result image without blocking the event loop."""
+    def _fetch(u):
+        with urllib.request.urlopen(u) as resp:
+            return resp.read()
+    return await asyncio.to_thread(_fetch, url)

@@ -49,6 +49,7 @@ export default function App() {
       setResult(null);
       setBatchResults(null);
       setProcessing(true);
+      if (originalUrl) URL.revokeObjectURL(originalUrl);
       setOriginalUrl(URL.createObjectURL(file));
 
       const form = new FormData();
@@ -84,6 +85,7 @@ export default function App() {
     if (!file || !file.type.startsWith("image/")) return;
     const newFiles = [...multiFiles];
     const newPreviews = [...multiPreviews];
+    if (newPreviews[index]) URL.revokeObjectURL(newPreviews[index]);
     newFiles[index] = file;
     newPreviews[index] = URL.createObjectURL(file);
     setMultiFiles(newFiles);
@@ -145,12 +147,14 @@ export default function App() {
       setError("Максимум 20 фото за раз.");
       return;
     }
+    batchPreviews.forEach((url) => URL.revokeObjectURL(url));
     setBatchFiles(valid);
     setBatchPreviews(valid.map((f) => URL.createObjectURL(f)));
     setError(null);
   };
 
   const removeBatchFile = (index) => {
+    if (batchPreviews[index]) URL.revokeObjectURL(batchPreviews[index]);
     const newFiles = batchFiles.filter((_, i) => i !== index);
     const newPreviews = batchPreviews.filter((_, i) => i !== index);
     setBatchFiles(newFiles);
@@ -229,6 +233,9 @@ export default function App() {
   };
 
   const reset = () => {
+    if (originalUrl) URL.revokeObjectURL(originalUrl);
+    multiPreviews.forEach((url) => { if (url) URL.revokeObjectURL(url); });
+    batchPreviews.forEach((url) => URL.revokeObjectURL(url));
     setResult(null);
     setBatchResults(null);
     setOriginalUrl(null);
@@ -762,7 +769,7 @@ function PaymentSection({ onSubscribed }) {
     } catch (err) {
       console.error("Ошибка оплаты:", err);
       alert(
-        "Оплата временно недоступна. Для настройки добавьте ключи Stripe в .env"
+        "Оплата временно недоступна. Для настройки добавьте ключи ЮKassa в .env"
       );
     } finally {
       setLoading(false);
@@ -785,7 +792,7 @@ function PaymentSection({ onSubscribed }) {
     } catch (err) {
       console.error("Ошибка подписки:", err);
       alert(
-        "Подписка временно недоступна. Для настройки добавьте ключи Stripe в .env"
+        "Подписка временно недоступна. Для настройки добавьте ключи ЮKassa в .env"
       );
     } finally {
       setLoading(false);
@@ -817,18 +824,18 @@ function PaymentSection({ onSubscribed }) {
             Ежемесячная подписка — лимит обновляется каждый месяц
           </p>
           <div className="packs">
-            <div className="pack-card sub-card" onClick={() => subscribe("sub_30")}>
+            <div className="pack-card sub-card" onClick={() => !loading && subscribe("sub_30")} style={{ pointerEvents: loading ? 'none' : 'auto', opacity: loading ? 0.5 : 1 }}>
               <div className="count">30</div>
               <div className="label">фото/мес</div>
               <div className="sub-tag">подписка</div>
             </div>
-            <div className="pack-card sub-card popular" onClick={() => subscribe("sub_100")}>
+            <div className="pack-card sub-card popular" onClick={() => !loading && subscribe("sub_100")} style={{ pointerEvents: loading ? 'none' : 'auto', opacity: loading ? 0.5 : 1 }}>
               <div className="popular-badge">Выгодно</div>
               <div className="count">100</div>
               <div className="label">фото/мес</div>
               <div className="sub-tag">подписка</div>
             </div>
-            <div className="pack-card sub-card" onClick={() => subscribe("sub_unlimited")}>
+            <div className="pack-card sub-card" onClick={() => !loading && subscribe("sub_unlimited")} style={{ pointerEvents: loading ? 'none' : 'auto', opacity: loading ? 0.5 : 1 }}>
               <div className="count">∞</div>
               <div className="label">безлимит</div>
               <div className="sub-tag">подписка</div>
@@ -843,15 +850,15 @@ function PaymentSection({ onSubscribed }) {
             Разовая покупка — фото не сгорают, используйте в любое время
           </p>
           <div className="packs">
-            <div className="pack-card" onClick={() => buyPack("pack_10")}>
+            <div className="pack-card" onClick={() => !loading && buyPack("pack_10")} style={{ pointerEvents: loading ? 'none' : 'auto', opacity: loading ? 0.5 : 1 }}>
               <div className="count">10</div>
               <div className="label">фото</div>
             </div>
-            <div className="pack-card" onClick={() => buyPack("pack_50")}>
+            <div className="pack-card" onClick={() => !loading && buyPack("pack_50")} style={{ pointerEvents: loading ? 'none' : 'auto', opacity: loading ? 0.5 : 1 }}>
               <div className="count">50</div>
               <div className="label">фото</div>
             </div>
-            <div className="pack-card" onClick={() => buyPack("pack_200")}>
+            <div className="pack-card" onClick={() => !loading && buyPack("pack_200")} style={{ pointerEvents: loading ? 'none' : 'auto', opacity: loading ? 0.5 : 1 }}>
               <div className="count">200</div>
               <div className="label">фото</div>
             </div>

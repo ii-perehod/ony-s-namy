@@ -1,6 +1,7 @@
 """FotoRestorer — API server for old photo restoration and colorization."""
 
 import os
+import re
 import uuid
 import shutil
 from pathlib import Path
@@ -23,6 +24,8 @@ from payments import (
 )
 
 app = FastAPI(title="FotoRestorer", version="1.0.0")
+
+UUID_RE = re.compile(r'^[a-f0-9\-]{36}$')
 
 # CORS for frontend
 app.add_middleware(
@@ -258,6 +261,8 @@ async def restore_batch(
 
 @app.get("/api/download/{photo_id}")
 async def download_result(photo_id: str):
+    if not UUID_RE.match(photo_id):
+        raise HTTPException(status_code=400, detail="Неверный ID фото.")
     result_path = UPLOAD_DIR / "results" / f"{photo_id}.jpg"
     if not result_path.exists():
         raise HTTPException(status_code=404, detail="Фото не найдено.")
@@ -324,13 +329,15 @@ async def subscribe(
     return response
 
 
-@app.post("/api/webhook/stripe")
-async def stripe_webhook(request: Request):
-    payload = await request.body()
-    sig = request.headers.get("stripe-signature", "")
+@app.post("/api/webhook/yookassa")
+async def yookassa_webhook(request: Request):
+    try:
+        payload = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Неверный JSON") from e
 
     try:
-        result = handle_webhook(payload, sig)
+        result = handle_webhook(payload)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -346,14 +353,14 @@ async def stripe_webhook(request: Request):
         elif event_type == "subscription_created" and sid:
             plan_id = result.get("plan_id", "")
             photo_limit = int(result.get("photo_limit", "0"))
-            stripe_sub_id = result.get("stripe_subscription_id", "")
-            set_subscription(sid, plan_id, photo_limit, stripe_sub_id)
+            pm_id = result.get("payment_method_id", "")
+            set_subscription(sid, plan_id, photo_limit, pm_id)
 
         elif event_type == "subscription_renewed" and sid:
             plan_id = result.get("plan_id", "")
             photo_limit = int(result.get("photo_limit", "0"))
-            stripe_sub_id = result.get("stripe_subscription_id", "")
-            set_subscription(sid, plan_id, photo_limit, stripe_sub_id)
+            pm_id = result.get("payment_method_id", "")
+            set_subscription(sid, plan_id, photo_limit, pm_id)
 
         elif event_type == "subscription_cancelled" and sid:
             cancel_subscription(sid)
