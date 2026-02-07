@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**FotoRestorer** (ФотоРеставратор) — a full-stack web app for AI-powered restoration and colorization of old photographs. Users upload damaged/B&W photos, which get processed through AI pipelines (CodeFormer for face restoration, DeOldify for colorization). Freemium model: 5 free photos, then paid packs or monthly subscriptions via YooKassa (СБП, МИР, российские карты). Supports single photo, batch upload (up to 20), two-photo glare removal, and direct camera capture on mobile.
+**FotoRestorer** (ФотоРеставратор) — a full-stack web app for AI-powered restoration and colorization of old photographs. Users upload damaged/B&W photos, which get processed through AI pipelines (CodeFormer for face restoration, DeOldify for colorization). Freemium model: 3 free photos, then paid packs or monthly subscriptions via YooKassa (СБП, МИР, российские карты). Supports single photo, batch upload (up to 20), two-photo glare removal, and direct camera capture on mobile.
 
 All UI text is in Russian.
 
@@ -92,7 +92,7 @@ All required in `.env` (see `.env.example`):
 | `REPLICATE_API_TOKEN` | Replicate API key for AI model calls |
 | `YOOKASSA_SHOP_ID` | YooKassa shop ID (из личного кабинета) |
 | `YOOKASSA_SECRET_KEY` | YooKassa secret key |
-| `FREE_PHOTOS_LIMIT` | Free photos per session (default: 5) |
+| `FREE_PHOTOS_LIMIT` | Free photos per session (default: 3) |
 | `UPLOAD_DIR` | Upload directory path (default: `./uploads`) |
 | `MAX_FILE_SIZE_MB` | Max upload size in MB (default: 20) |
 
